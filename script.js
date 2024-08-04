@@ -271,7 +271,7 @@ function shareResultImage() {
             shareData.files = filesArray;
         }
 
-     navigator.share(shareData)
+        navigator.share(shareData)
             .then(() => console.log('Share was successful.'))
             .catch((error) => {
                 console.log('Sharing failed', error);
@@ -387,11 +387,15 @@ window.onclick = function(event) {
     }
 }
 
-document.querySelector('.card').addEventListener('click', function() {
-    if (!this.classList.contains('flipped')) {
+document.querySelector('.card').addEventListener('click', function(event) {
+    if (!this.classList.contains('flipped') && event.target.closest('.card-front')) {
         flipCard();
     }
 });
 
 // Call this function when the page loads
 window.onload = fetchQuestions;
+
+// Call adjustCardHeight on window resize
+window.addEventListener('resize', adjustCardHeight);
+
