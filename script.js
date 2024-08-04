@@ -77,6 +77,7 @@ function loadQuestion() {
     
     updateProgressBar();
     updateQuestionCount();
+    adjustCardHeight();
 }
 
 function flipCard() {
@@ -114,6 +115,21 @@ function updateProgressBar() {
 function updateQuestionCount() {
     document.getElementById('current-question').textContent = currentQuestion + 1;
     document.getElementById('total-questions').textContent = questions.length;
+}
+
+function adjustCardHeight() {
+    const cardContent = document.querySelector('.card-back .card-content');
+    const questionText = document.getElementById('question-text');
+    const options = document.getElementById('options');
+    
+    // Reset the height to auto to get the natural height
+    cardContent.style.height = 'auto';
+    
+    // Get the total height of the content
+    const totalHeight = questionText.offsetHeight + options.offsetHeight + 40; // 40px for padding
+    
+    // Set the minimum height to either the total content height or 300px, whichever is larger
+    cardContent.style.minHeight = `${Math.max(totalHeight, 300)}px`;
 }
 
 function checkAnswer(selectedIndex) {
@@ -255,7 +271,7 @@ function shareResultImage() {
             shareData.files = filesArray;
         }
 
-        navigator.share(shareData)
+     navigator.share(shareData)
             .then(() => console.log('Share was successful.'))
             .catch((error) => {
                 console.log('Sharing failed', error);
@@ -278,6 +294,7 @@ function generateShareableLink() {
     const baseUrl = window.location.href.split('?')[0];
     return `${baseUrl}?score=${score}&total=${questions.length}`;
 }
+
 function shareOnTwitter() {
     const text = `I scored ${score} out of ${questions.length} on the AI Quizmaster! Can you beat my score?`;
     const url = encodeURIComponent(generateShareableLink());
