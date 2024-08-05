@@ -33,33 +33,54 @@ async function fetchQuestions() {
             };
         });
 
-        questions = filterQuestions(allQuestions, currentCategory, currentDifficulty);
-        if (questions.length < maxQuestions) {
-            questions = questions.concat(getAdditionalQuestions(allQuestions, currentCategory, currentDifficulty, maxQuestions - questions.length));
-        }
-        questions = shuffleArray(questions.slice(0, maxQuestions));
+        questions = getQuestions(allQuestions, currentCategory, currentDifficulty, maxQuestions);
         startQuiz();
     } catch (error) {
         console.error('Error fetching questions:', error);
     }
 }
 
-function filterQuestions(questions, category, difficulty) {
-    return questions.filter(q => q.category === category && q.difficulty === difficulty);
+function getQuestions(allQuestions, category, difficulty, count) {
+    let selectedQuestions = [];
+    const difficulties = ['Easy', 'Medium', 'Hard'];
+    const categories = ['General public with tech interest', 'Business professionals', 'Gamers', 'Tech enthusiasts and AI professionals'];
+
+    // Start with the selected category and difficulty
+    selectedQuestions = filterQuestions(allQuestions, category, difficulty);
+
+    // If we don't have enough questions, move to higher difficulties in the same category
+    let difficultyIndex = difficulties.indexOf(difficulty);
+    while (selectedQuestions.length < count && difficultyIndex < difficulties.length) {
+        difficultyIndex++;
+        if (difficultyIndex < difficulties.length) {
+            selectedQuestions = selectedQuestions.concat(
+                filterQuestions(allQuestions, category, difficulties[difficultyIndex])
+            );
+        }
+    }
+
+    // If we still don't have enough questions, move to other categories
+    let categoryIndex = categories.indexOf(category);
+    while (selectedQuestions.length < count && categoryIndex < categories.length) {
+        categoryIndex++;
+        if (categoryIndex < categories.length) {
+            // Reset difficulty to the original selection for the new category
+            difficultyIndex = difficulties.indexOf(difficulty);
+            while (selectedQuestions.length < count && difficultyIndex < difficulties.length) {
+                selectedQuestions = selectedQuestions.concat(
+                    filterQuestions(allQuestions, categories[categoryIndex], difficulties[difficultyIndex])
+                );
+                difficultyIndex++;
+            }
+        }
+    }
+
+    // Shuffle and slice to get the required number of questions
+    return shuffleArray(selectedQuestions).slice(0, count);
 }
 
-function getAdditionalQuestions(allQuestions, category, currentDifficulty, count) {
-    const difficulties = ['Easy', 'Medium', 'Hard'];
-    const currentIndex = difficulties.indexOf(currentDifficulty);
-    
-    for (let i = currentIndex + 1; i < difficulties.length; i++) {
-        const higherDifficultyQuestions = filterQuestions(allQuestions, category, difficulties[i]);
-        if (higherDifficultyQuestions.length >= count) {
-            return shuffleArray(higherDifficultyQuestions).slice(0, count);
-        }
-        count -= higherDifficultyQuestions.length;
-    }
-    return [];
+function filterQuestions(questions, category, difficulty) {
+    return questions.filter(q => q.category === category && q.difficulty === difficulty);
 }
 
 function shuffleArray(array) {
@@ -77,6 +98,15 @@ function startQuiz() {
     updateQuestionCount();
     updateScore();
     updateStreak();
+
+    // Inform the user if questions are from different difficulties or categories
+    const differentDifficulties = new Set(questions.map(q => q.difficulty)).size > 1;
+    const differentCategories = new Set(questions.map(q => q.category)).size > 1;
+
+    if (differentDifficulties || differentCategories) {
+        alert("To meet the requested number of questions, some questions may be from different difficulties or categories than initially selected.");
+    }
+
     loadQuestion();
 }
 
@@ -90,8 +120,28 @@ function loadQuestion() {
     
     document.getElementById('options').innerHTML = optionsHtml;
     
+    // Reset card flip
+    document.querySelector('.card').classList.remove('flipped');
+    
+    // Change card icon randomly
+    const icons = ['fa-microchip', 'fa-brain', 'fa-robot', 'fa-cog', 'fa-network-wired'];
+    const randomIcon = icons[Math.floor(Math.random() * icons.length)];
+    document.querySelector('.card-icon i').className = `fas ${randomIcon}`;
+    
+    // Update front card text
+    const frontTexts = [
+        "Ready for the next challenge?",
+        "Another AI puzzle awaits!",
+        "Prepare to test your AI knowledge!",
+        "Next question incoming!",
+        "Are you up for this AI challenge?"
+    ];
+    const randomText = frontTexts[Math.floor(Math.random() * frontTexts.length)];
+    document.querySelector('.card-front p').textContent = randomText;
+    
     updateProgressBar();
     updateQuestionCount();
+    adjustCardHeight();
     flipCard();
 }
 
@@ -328,12 +378,13 @@ function shareOnTwitter() {
 }
 
 function shareOnFacebook() {
+    const text = `I just scored ${score} out of ${questions.length} on the AI Quizmaster! Can you beat my score?`;
     const url = encodeURIComponent(generateShareableLink());
-    window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank');
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}&quote=${encodeURIComponent(text)}`, '_blank');
 }
 
 function shareOnLinkedIn() {
-    const text = `I scored ${score} out of ${questions.length} on the AI Quizmaster! Can you beat my score?`;
+    const text = `I achieved a score of ${score}/${questions.length} on the AI Quizmaster. Test your AI knowledge!`;
     const url = encodeURIComponent(generateShareableLink());
     const title = encodeURIComponent('AI Quizmaster Challenge');
     window.open(`https://www.linkedin.com/shareArticle?mini=true&url=${url}&title=${title}&summary=${encodeURIComponent(text)}`, '_blank');
@@ -386,6 +437,21 @@ function handleModalKeyboard(event) {
     }
 }
 
+function adjustCardHeight() {
+    const cardContent = document.querySelector('.card-back .card-content');
+    const questionText = document.getElementById('question-text');
+    const options = document.getElementById('options');
+    
+    // Reset the height to auto to get the natural height
+    cardContent.style.height = 'auto';
+    
+    // Get the total height of the content
+    const totalHeight = questionText.offsetHeight + options.offsetHeight + 40; // 40px for padding
+    
+    // Set the minimum height to either the total content height or 300px, whichever is larger
+    cardContent.style.minHeight = `${Math.max(totalHeight, 300)}px`;
+}
+
 document.getElementById('theme-toggle').addEventListener('click', function() {
     document.body.classList.toggle('dark-mode');
 });
@@ -420,18 +486,3 @@ window.onload = fetchQuestions;
 
 // Call adjustCardHeight on window resize
 window.addEventListener('resize', adjustCardHeight);
-
-function adjustCardHeight() {
-    const cardContent = document.querySelector('.card-back .card-content');
-    const questionText = document.getElementById('question-text');
-    const options = document.getElementById('options');
-    
-    // Reset the height to auto to get the natural height
-    cardContent.style.height = 'auto';
-    
-    // Get the total height of the content
-    const totalHeight = questionText.offsetHeight + options.offsetHeight + 40; // 40px for padding
-    
-    // Set the minimum height to either the total content height or 300px, whichever is larger
-    cardContent.style.minHeight = `${Math.max(totalHeight, 300)}px`;
-}
