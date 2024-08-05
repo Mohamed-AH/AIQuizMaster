@@ -5,7 +5,9 @@ let timeLeft = 30;
 let timer;
 let questions = [];
 let isMuted = false;
-let maxQuestions = 10; // Default number of questions
+let maxQuestions = 10;
+let currentCategory = "General public with tech interest";
+let currentDifficulty = "Easy";
 
 const sound = {
     correct: new Howl({ src: ['https://assets.mixkit.co/sfx/preview/mixkit-melodic-bonus-collect-1938.mp3'] }),
@@ -20,20 +22,52 @@ async function fetchQuestions() {
         const response = await fetch(url);
         const csvData = await response.text();
         const rows = csvData.split('\n').slice(1); // Remove header row
-        questions = rows.map(row => {
-            const [question, ...options] = row.split(',').map(cell => cell.trim().replace(/(^"|"$)/g, ''));
+        const allQuestions = rows.map(row => {
+            const [sNo, question, optionA, optionB, optionC, optionD, optionE, correctAnswer, category, difficulty] = row.split(',').map(cell => cell.trim().replace(/(^"|"$)/g, ''));
             return {
-                question: question,
-                options: options.slice(0, 4),
-                correctAnswer: parseInt(options[4]) - 1
+                question,
+                options: [optionA, optionB, optionC, optionD, optionE].filter(Boolean),
+                correctAnswer: parseInt(correctAnswer) - 1,
+                category,
+                difficulty
             };
         });
-        // Limit questions to maxQuestions
-        questions = questions.slice(0, maxQuestions);
+
+        questions = filterQuestions(allQuestions, currentCategory, currentDifficulty);
+        if (questions.length < maxQuestions) {
+            questions = questions.concat(getAdditionalQuestions(allQuestions, currentCategory, currentDifficulty, maxQuestions - questions.length));
+        }
+        questions = shuffleArray(questions.slice(0, maxQuestions));
         startQuiz();
     } catch (error) {
         console.error('Error fetching questions:', error);
     }
+}
+
+function filterQuestions(questions, category, difficulty) {
+    return questions.filter(q => q.category === category && q.difficulty === difficulty);
+}
+
+function getAdditionalQuestions(allQuestions, category, currentDifficulty, count) {
+    const difficulties = ['Easy', 'Medium', 'Hard'];
+    const currentIndex = difficulties.indexOf(currentDifficulty);
+    
+    for (let i = currentIndex + 1; i < difficulties.length; i++) {
+        const higherDifficultyQuestions = filterQuestions(allQuestions, category, difficulties[i]);
+        if (higherDifficultyQuestions.length >= count) {
+            return shuffleArray(higherDifficultyQuestions).slice(0, count);
+        }
+        count -= higherDifficultyQuestions.length;
+    }
+    return [];
+}
+
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
 }
 
 function startQuiz() {
@@ -41,6 +75,8 @@ function startQuiz() {
     score = 0;
     streak = 0;
     updateQuestionCount();
+    updateScore();
+    updateStreak();
     loadQuestion();
 }
 
@@ -49,35 +85,14 @@ function loadQuestion() {
     document.getElementById('question-text').textContent = question.question;
     
     const optionsHtml = question.options
-        .map((option, index) => ({ option, index }))
-        .sort(() => Math.random() - 0.5)
-        .map(({ option, index }) => `<button onclick="checkAnswer(${index})">${option}</button>`)
+        .map((option, index) => `<button onclick="checkAnswer(${index})">${option}</button>`)
         .join('');
     
     document.getElementById('options').innerHTML = optionsHtml;
     
-    // Reset card flip
-    document.querySelector('.card').classList.remove('flipped');
-    
-    // Change card icon randomly
-    const icons = ['fa-microchip', 'fa-brain', 'fa-robot', 'fa-cog', 'fa-network-wired'];
-    const randomIcon = icons[Math.floor(Math.random() * icons.length)];
-    document.querySelector('.card-icon i').className = `fas ${randomIcon}`;
-    
-    // Update front card text
-    const frontTexts = [
-        "Ready for the next challenge?",
-        "Another AI puzzle awaits!",
-        "Prepare to test your AI knowledge!",
-        "Next question incoming!",
-        "Are you up for this AI challenge?"
-    ];
-    const randomText = frontTexts[Math.floor(Math.random() * frontTexts.length)];
-    document.querySelector('.card-front p').textContent = randomText;
-    
     updateProgressBar();
     updateQuestionCount();
-    adjustCardHeight();
+    flipCard();
 }
 
 function flipCard() {
@@ -100,14 +115,14 @@ function startTimer() {
 
 function updateTimerBar() {
     const percentage = (timeLeft / 30) * 100;
-    const timerBar = document.getElementById('timer-bar');
+    const timerBar = document.getElementById('timer-bar').firstElementChild;
     timerBar.style.width = `${percentage}%`;
     timerBar.setAttribute('aria-valuenow', timeLeft);
 }
 
 function updateProgressBar() {
     const percentage = (currentQuestion / questions.length) * 100;
-    const progressBar = document.getElementById('progress-bar');
+    const progressBar = document.getElementById('progress-bar').firstElementChild;
     progressBar.style.width = `${percentage}%`;
     progressBar.setAttribute('aria-valuenow', percentage);
 }
@@ -117,19 +132,12 @@ function updateQuestionCount() {
     document.getElementById('total-questions').textContent = questions.length;
 }
 
-function adjustCardHeight() {
-    const cardContent = document.querySelector('.card-back .card-content');
-    const questionText = document.getElementById('question-text');
-    const options = document.getElementById('options');
-    
-    // Reset the height to auto to get the natural height
-    cardContent.style.height = 'auto';
-    
-    // Get the total height of the content
-    const totalHeight = questionText.offsetHeight + options.offsetHeight + 40; // 40px for padding
-    
-    // Set the minimum height to either the total content height or 300px, whichever is larger
-    cardContent.style.minHeight = `${Math.max(totalHeight, 300)}px`;
+function updateScore() {
+    document.getElementById('score').textContent = `Score: ${score}`;
+}
+
+function updateStreak() {
+    document.getElementById('streak').textContent = `Streak: ${streak} 🔥`;
 }
 
 function checkAnswer(selectedIndex) {
@@ -143,8 +151,8 @@ function checkAnswer(selectedIndex) {
         streak = 0;
         if (!isMuted) sound.incorrect.play();
     }
-    document.getElementById('score').textContent = `Score: ${score}`;
-    document.getElementById('streak').textContent = `Streak: ${streak} 🔥`;
+    updateScore();
+    updateStreak();
     currentQuestion++;
     if (currentQuestion < questions.length) {
         setTimeout(loadQuestion, 1000);
@@ -155,14 +163,24 @@ function checkAnswer(selectedIndex) {
 
 function showResult() {
     if (!isMuted) sound.complete.play();
+    
+    let levelMessage = '';
+    if (currentDifficulty !== 'Hard') {
+        levelMessage = `<p>Great job! Why not try a higher difficulty level next time?</p>`;
+    }
+    
     const resultHtml = `
         <h2>Quiz Completed!</h2>
         <p>Your score: ${score} out of ${questions.length}</p>
         <p>Highest streak: ${streak}</p>
+        ${levelMessage}
         <button onclick="restartQuiz()">Restart Quiz</button>
+        <button onclick="toggleSettingsModal()">Change Settings</button>
     `;
+    
     document.getElementById('quiz').style.display = 'none';
     document.getElementById('result').innerHTML = resultHtml;
+    document.getElementById('result').style.display = 'block';
     document.getElementById('share-buttons').style.display = 'block';
     document.getElementById('result-customization').style.display = 'block';
     
@@ -175,11 +193,19 @@ function showResult() {
 }
 
 function restartQuiz() {
+    score = 0;
+    streak = 0;
+    currentQuestion = 0;
     document.getElementById('quiz').style.display = 'block';
     document.getElementById('result').innerHTML = '';
+    document.getElementById('result').style.display = 'none';
     document.getElementById('share-buttons').style.display = 'none';
     document.getElementById('resultImage').style.display = 'none';
     document.getElementById('result-customization').style.display = 'none';
+    
+    updateScore();
+    updateStreak();
+    
     fetchQuestions();
 }
 
@@ -347,6 +373,8 @@ function closeModals() {
 }
 
 function applySettings() {
+    currentCategory = document.getElementById('category-select').value;
+    currentDifficulty = document.getElementById('difficulty-select').value;
     maxQuestions = parseInt(document.getElementById('question-count').value);
     document.getElementById('settings-modal').style.display = 'none';
     fetchQuestions();
@@ -387,15 +415,23 @@ window.onclick = function(event) {
     }
 }
 
-document.querySelector('.card').addEventListener('click', function(event) {
-    if (!this.classList.contains('flipped') && event.target.closest('.card-front')) {
-        flipCard();
-    }
-});
-
 // Call this function when the page loads
 window.onload = fetchQuestions;
 
 // Call adjustCardHeight on window resize
 window.addEventListener('resize', adjustCardHeight);
 
+function adjustCardHeight() {
+    const cardContent = document.querySelector('.card-back .card-content');
+    const questionText = document.getElementById('question-text');
+    const options = document.getElementById('options');
+    
+    // Reset the height to auto to get the natural height
+    cardContent.style.height = 'auto';
+    
+    // Get the total height of the content
+    const totalHeight = questionText.offsetHeight + options.offsetHeight + 40; // 40px for padding
+    
+    // Set the minimum height to either the total content height or 300px, whichever is larger
+    cardContent.style.minHeight = `${Math.max(totalHeight, 300)}px`;
+}
