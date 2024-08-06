@@ -250,6 +250,7 @@ h1 {
     cursor: pointer;
     transition: background-color 0.3s ease, transform 0.3s ease;
     margin-right: 10px;
+    margin-bottom: 10px;
 }
 
 #result button:hover {
@@ -257,12 +258,27 @@ h1 {
     transform: translateY(-3px);
 }
 
+#resultImage img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
 #share-buttons {
+    margin-top: 20px;
+}
+
+#share-buttons h3 {
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+#share-buttons > div {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
     gap: 10px;
-    margin-top: 20px;
 }
 
 #share-buttons button,
@@ -273,23 +289,24 @@ h1 {
     border-radius: 5px;
     cursor: pointer;
     text-decoration: none;
-    color: var(--card-bg);
+    color: white;
     transition: background-color 0.3s ease, transform 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1 1 calc(25% - 7.5px);
+    max-width: calc(25% - 7.5px);
+    min-width: 140px;
+}
+
+#share-buttons button:hover,
+#share-buttons a:hover {
+    opacity: 0.9;
+    transform: translateY(-2px);
 }
 
 #share-buttons button {
     background-color: var(--accent-color);
-    font-weight: bold;
-}
-
-#share-buttons button:hover {
-    background-color: var(--primary-color);
-    transform: translateY(-3px);
-}
-
-#share-buttons a:hover {
-    opacity: 0.9;
-    transform: translateY(-3px);
 }
 
 #twitter-share {
@@ -395,15 +412,28 @@ h1 {
     .options {
         grid-template-columns: 1fr;
     }
+    #share-buttons > div {
+        flex-direction: column;
+    }
+    #share-buttons button,
+    #share-buttons a {
+        width: 100%;
+        max-width: none;
+        flex: 1 1 auto;
+        padding: 12px 0;
+        font-size: 14px;
+        margin-bottom: 10px;
+    }
+    #resultImage img {
+        max-width: 350px;
+        margin: 0 auto;
+        display: block;
+    }
 }
 
 @media (max-width: 480px) {
     h1 {
         font-size: 2em;
-    }
-    #share-buttons button, #share-buttons a {
-        padding: 8px 16px;
-        font-size: 14px;
     }
     #customization-options input,
     #customization-options select {
