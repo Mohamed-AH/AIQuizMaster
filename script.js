@@ -235,7 +235,9 @@ function showResult() {
     document.getElementById('result-customization').style.display = 'block';
     
     generateResultImage();
-    
+    adjustCardHeight();
+    adjustShareButtons();
+  
     const shareableLink = generateShareableLink();
     document.getElementById('twitter-share').href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(`I scored ${score} out of ${questions.length} on the AI Quizmaster! Can you beat my score?`)}&url=${encodeURIComponent(shareableLink)}`;
     document.getElementById('facebook-share').href = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareableLink)}`;
@@ -266,14 +268,27 @@ function generateResultImage() {
     const borderColor = document.getElementById('border-color').value;
     const fillColor = document.getElementById('fill-color').value;
     const font = document.getElementById('font-select').value;
-    const fontSize = document.getElementById('font-size').value;
+    const fontSize = parseInt(document.getElementById('font-size').value);
 
-    canvas.width = 600;
-    canvas.height = 400;
+    // Determine if we're on a mobile device
+    const isMobile = window.innerWidth <= 768;
+
+    if (isMobile) {
+        canvas.width = 350;
+        canvas.height = 600;
+    } else {
+        canvas.width = 600;
+        canvas.height = 400;
+    }
 
     // Background
     ctx.fillStyle = fillColor;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Create AI-themed pattern background for mobile
+    if (isMobile) {
+        createAIBackground(ctx, canvas.width, canvas.height);
+    }
 
     // Border
     ctx.strokeStyle = borderColor;
@@ -282,14 +297,14 @@ function generateResultImage() {
 
     // Title
     ctx.fillStyle = '#4a90e2';
-    ctx.font = `bold 30px ${font}`;
+    ctx.font = `bold ${isMobile ? '24px' : '30px'} ${font}`;
     ctx.textAlign = 'center';
-    ctx.fillText('AI Quizmaster Results', canvas.width / 2, 50);
+    ctx.fillText('AI Quizmaster Results', canvas.width / 2, isMobile ? 40 : 50);
 
     // User name and result message
-    ctx.font = `20px ${font}`;
+    ctx.font = `${isMobile ? '18px' : '20px'} ${font}`;
     if (userName) {
-        ctx.fillText(userName, canvas.width / 2, 100);
+        ctx.fillText(userName, canvas.width / 2, isMobile ? 80 : 100);
     }
     
     const scorePercentage = (score / questions.length) * 100;
@@ -301,27 +316,82 @@ function generateResultImage() {
     } else {
         resultMessage = "Excellent work!";
     }
-    ctx.fillText(resultMessage, canvas.width / 2, userName ? 130 : 100);
+    ctx.fillText(resultMessage, canvas.width / 2, isMobile ? (userName ? 110 : 80) : (userName ? 130 : 100));
 
     // Score and streak
     ctx.fillStyle = '#333';
     ctx.font = `${fontSize}px ${font}`;
-    ctx.fillText(`Score: ${score} out of ${questions.length}`, canvas.width / 2, 180);
-    ctx.fillText(`Highest Streak: ${streak}`, canvas.width / 2, 220);
+    ctx.fillText(`Score: ${score} out of ${questions.length}`, canvas.width / 2, isMobile ? 160 : 180);
+    ctx.fillText(`Highest Streak: ${streak}`, canvas.width / 2, isMobile ? 200 : 220);
 
     // Date
     const date = new Date().toLocaleDateString();
-    ctx.font = `18px ${font}`;
-    ctx.fillText(`Date: ${date}`, canvas.width / 2, 260);
+    ctx.font = `${isMobile ? '16px' : '18px'} ${font}`;
+    ctx.fillText(`Date: ${date}`, canvas.width / 2, isMobile ? 240 : 260);
 
     // Footer
     ctx.fillStyle = '#4a90e2';
-    ctx.font = `italic 20px ${font}`;
-    ctx.fillText('Think you can beat this score?', canvas.width / 2, 350);
+    ctx.font = `italic ${isMobile ? '18px' : '20px'} ${font}`;
+    ctx.fillText('Think you can beat this score?', canvas.width / 2, isMobile ? 550 : 350);
 
     const dataUrl = canvas.toDataURL('image/png');
     document.getElementById('resultImg').src = dataUrl;
     document.getElementById('resultImage').style.display = 'block';
+}
+
+function createAIBackground(ctx, width, height) {
+    // Create a grid pattern
+    const gridSize = 20;
+    ctx.strokeStyle = 'rgba(74, 144, 226, 0.2)'; // Light blue color
+    ctx.lineWidth = 1;
+
+    for (let x = 0; x <= width; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+    }
+
+    for (let y = 0; y <= height; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+    }
+
+    // Add some "nodes" to represent an AI network
+    const nodeCount = 20;
+    const nodes = [];
+
+    for (let i = 0; i < nodeCount; i++) {
+        nodes.push({
+            x: Math.random() * width,
+            y: Math.random() * height,
+            radius: Math.random() * 3 + 2
+        });
+    }
+
+    // Draw nodes and connections
+    ctx.fillStyle = 'rgba(74, 144, 226, 0.6)';
+    nodes.forEach(node => {
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    // Connect some nodes with lines
+    ctx.strokeStyle = 'rgba(74, 144, 226, 0.3)';
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+            if (Math.random() > 0.7) {
+                ctx.beginPath();
+                ctx.moveTo(nodes[i].x, nodes[i].y);
+                ctx.lineTo(nodes[j].x, nodes[j].y);
+                ctx.stroke();
+            }
+        }
+    }
 }
 
 function downloadResult() {
@@ -441,15 +511,32 @@ function adjustCardHeight() {
     const cardContent = document.querySelector('.card-back .card-content');
     const questionText = document.getElementById('question-text');
     const options = document.getElementById('options');
+    const resultImage = document.getElementById('resultImg');
     
     // Reset the height to auto to get the natural height
     cardContent.style.height = 'auto';
     
     // Get the total height of the content
-    const totalHeight = questionText.offsetHeight + options.offsetHeight + 40; // 40px for padding
+    let totalHeight = questionText.offsetHeight + options.offsetHeight + 40; // 40px for padding
+    
+    // Add result image height if it's visible
+    if (resultImage.style.display !== 'none') {
+        totalHeight += resultImage.offsetHeight + 20; // 20px for margin
+    }
     
     // Set the minimum height to either the total content height or 300px, whichever is larger
     cardContent.style.minHeight = `${Math.max(totalHeight, 300)}px`;
+}
+
+function adjustShareButtons() {
+    const shareButtonsContainer = document.querySelector('#share-buttons > div');
+    const isMobile = window.innerWidth <= 768;
+
+    if (isMobile) {
+        shareButtonsContainer.style.flexDirection = 'column';
+    } else {
+        shareButtonsContainer.style.flexDirection = 'row';
+    }
 }
 
 document.getElementById('theme-toggle').addEventListener('click', function() {
@@ -480,6 +567,9 @@ window.onclick = function(event) {
         closeModals();
     }
 }
+
+// Call this function when the window is resized
+window.addEventListener('resize', adjustShareButtons);
 
 // Call this function when the page loads
 window.onload = fetchQuestions;
